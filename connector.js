@@ -13,7 +13,7 @@
 
 const AWS = require('aws-sdk');
 const HttpConnector = require('elasticsearch/src/lib/connectors/http');
-const HttpClient = require('./src/node');
+const HttpClient = require('./src/xhr');
 
 class HttpAmazonESConnector extends HttpConnector {
   constructor(host, config) {
