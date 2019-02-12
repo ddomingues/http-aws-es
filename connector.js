@@ -12,14 +12,13 @@
  */
 
 const AWS = require('aws-sdk');
-const XhrConnector = require('elasticsearch/src/lib/connectors/xhr');
 const Host = require('elasticsearch/src/lib/host');
+const XhrConnector = require('elasticsearch/src/lib/connectors/xhr');
 const HttpClient = require('./src/xhr');
 
 class HttpAmazonESConnector extends XhrConnector {
   constructor(host, config) {
-    super(host, config);
-
+    super(new Host(host), config);
     const protocol = host.protocol;
     const port = host.port;
     const endpoint = new AWS.Endpoint(host.host);
