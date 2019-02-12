@@ -8,14 +8,15 @@
  * @param client {Client} - The Client that this class belongs to
  * @param config {Object} - Configuration options
  * @param [config.protocol=http:] {String} - The HTTP protocol that this connection will use, can be set to https:
- * @class HttpConnector
+ * @class XhrConnector
  */
 
 const AWS = require('aws-sdk');
-const HttpConnector = require('elasticsearch/src/lib/connectors/http');
+const XhrConnector = require('elasticsearch/src/lib/connectors/xhr');
+const Host = require('elasticsearch/src/lib/host');
 const HttpClient = require('./src/xhr');
 
-class HttpAmazonESConnector extends HttpConnector {
+class HttpAmazonESConnector extends XhrConnector {
   constructor(host, config) {
     super(host, config);
 
@@ -33,8 +34,6 @@ class HttpAmazonESConnector extends HttpConnector {
   }
 
   request(params, cb) {
-    const reqParams = this.makeReqParams(params);
-
     let req;
     let cancelled;
 
@@ -44,7 +43,7 @@ class HttpAmazonESConnector extends HttpConnector {
     };
 
     const done = (err, response, status, headers) => {
-      this.log.trace(params.method, reqParams, params.body, response, status);
+      this.log.trace(params.method, params.body, response, status);
       cb(err, response, status, headers);
     };
 
@@ -59,7 +58,7 @@ class HttpAmazonESConnector extends HttpConnector {
           return;
         }
 
-        const request = this.createRequest(params, reqParams);
+        const request = this.createRequest(params);
         // Sign the request (Sigv4)
         this.signRequest(request, creds);
         req = this.httpClient.handleRequest(request, this.httpOptions, done);
@@ -78,11 +77,8 @@ class HttpAmazonESConnector extends HttpConnector {
     });
   }
 
-  createRequest(params, reqParams) {
+  createRequest(params) {
     const request = new AWS.HttpRequest(this.endpoint);
-
-    // copy across params
-    Object.assign(request, reqParams);
 
     request.region = this.awsConfig.region;
     if (!request.headers) request.headers = {};
