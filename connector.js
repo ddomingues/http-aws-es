@@ -13,6 +13,7 @@
 
 const AWS = require('aws-sdk');
 const Host = require('elasticsearch/src/lib/host');
+const qs = require('querystring');
 const XhrConnector = require('elasticsearch/src/lib/connectors/xhr');
 const HttpClient = require('./src/xhr');
 
@@ -33,6 +34,7 @@ class HttpAmazonESConnector extends XhrConnector {
   }
 
   request(params, cb) {
+    const reqParams = this.makeReqParams(params);
     let req;
     let cancelled;
 
@@ -42,7 +44,6 @@ class HttpAmazonESConnector extends XhrConnector {
     };
 
     const done = (err, response, status, headers) => {
-      this.log.trace(params.method, params.body, response, status);
       cb(err, response, status, headers);
     };
 
@@ -57,7 +58,7 @@ class HttpAmazonESConnector extends XhrConnector {
           return;
         }
 
-        const request = this.createRequest(params);
+        const request = this.createRequest(params, reqParams);
         // Sign the request (Sigv4)
         this.signRequest(request, creds);
         req = this.httpClient.handleRequest(request, this.httpOptions, done);
@@ -65,6 +66,32 @@ class HttpAmazonESConnector extends XhrConnector {
       .catch(done);
 
     return cancel;
+  }
+
+  makeReqParams(params) {
+    params = params || {};
+    var host = this.host;
+  
+    var reqParams = {
+      method: params.method || 'GET',
+      protocol: host.protocol + ':',
+      hostname: host.host,
+      port: host.port,
+      path: (host.path || '') + (params.path || ''),
+      headers: host.getHeaders(params.headers),
+      agent: this.agent
+    };
+  
+    if (!reqParams.path) {
+      reqParams.path = '/';
+    }
+  
+    var query = host.getQuery(params.query);
+    if (query) {
+      reqParams.path = reqParams.path + '?' + qs.stringify(query);
+    }
+  
+    return reqParams;
   }
 
   getAWSCredentials() {
@@ -76,20 +103,20 @@ class HttpAmazonESConnector extends XhrConnector {
     });
   }
 
-  createRequest(params) {
+  createRequest(params, reqParams) {
     const request = new AWS.HttpRequest(this.endpoint);
+
+    Object.assign(request, reqParams);
 
     request.region = this.awsConfig.region;
     if (!request.headers) request.headers = {};
     let body = params.body;
 
     if (body) {
-      let contentLength = Buffer.isBuffer(body)
-        ? body.length
-        : Buffer.byteLength(body);
-      request.headers['Content-Length'] = contentLength;
+      request.headers['Content-Length'] = body.length;
       request.body = body;
     }
+    
     request.headers['Host'] = this.endpoint.host;
 
     return request;
